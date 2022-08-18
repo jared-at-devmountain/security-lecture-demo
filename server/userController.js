@@ -3,31 +3,45 @@ const bcrypt = require('bcrypt');
 module.exports = {
   signup: (req, res) => {
     const {email, password} = req.body
+    const saltRounds = 10
 
-    let newDatabaseEntry = {}
-    newDatabaseEntry.email = email
-    newDatabaseEntry.password = password
-    newDatabaseEntry.destiny = destinies[Math.floor(Math.random() * destinies.length)]
-    console.log('\nNew database entry: ')
-    console.log(newDatabaseEntry)
-    database.push(newDatabaseEntry)
-    res.status(200).send({success: true})
+    bcrypt.hash(password, saltRounds, (err, passwordHash) => {
+      let newDatabaseEntry = {}
+      newDatabaseEntry.email = email
+      newDatabaseEntry.passwordHash = passwordHash
+      newDatabaseEntry.destiny = destinies[Math.floor(Math.random() * destinies.length)]
+      console.log('\nNew database entry: ')
+      console.log(newDatabaseEntry)
+      database.push(newDatabaseEntry)
+      res.status(200).send({success: true})
+    })
   },
   login: (req, res) => {
     const {email, password} = req.body
     let userData
 
     for (let i=0; i<database.length; i++) {
-      if (email === database[i].email && password === database[i].password) {
+      if (email === database[i].email) {
         userData = database[i]
       }
     }
 
     if (!userData) {
-      res.status(200).send({success: false, message: 'bad password or username'})
+      res.status(200).send({success: false, message: 'bad password or username'}) //bad username, specifically
     } else {
-      const destinyIntro = "Your final destiny is to "
-      res.status(200).send({success: true, destiny: userData.destiny, intro: destinyIntro})
+      bcrypt.compare(password, userData.passwordHash, (err, result) => {
+        if (!err) {
+          if (result) {
+            const destinyIntro = "Your final destiny is to "
+            res.status(200).send({success: true, destiny: userData.destiny, intro: destinyIntro})
+          } else {
+            res.status(200).send({success: false, message: 'bad password or username'}) //bad password, specifically
+          }
+        } else {
+          console.log('Error during bycrypt.compare(): ' + err)
+          res.status(400).send({success: false})
+        }
+      })
     }
   }
 }
